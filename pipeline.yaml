@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1beta1  # Specifies the Tekton API version used
+kind: Pipeline                  # Declares this as a Tekton Pipeline resource
+metadata:
+  name: hello-pipeline          # Gives the pipeline a descriptive name
+spec:
+  tasks:                        # Indicates the beginning of the tasks list
+    - name: hello               # Assigns a name to this task within the pipeline
+      taskRef:                  # Section to reference an existing Task
+        name: hello-world       # The name of the pre-defined Task to execute 
