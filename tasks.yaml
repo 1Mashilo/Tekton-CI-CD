@@ -1,0 +1,10 @@
+apiVersion: tekton.dev/v1beta1  # Specifies the Tekton API version being used
+kind: Task                      # Declares that this is a Tekton Task resource
+metadata:                       # Section for providing metadata about the Task
+  name: hello-world             # Gives the Task a descriptive name
+spec:                           # Section for defining the Task's steps 
+  steps:                        # Indicates the beginning of the steps list
+    - name: echo                # Assigns a name to this specific step
+      image: alpine:3           # Specifies the Docker image to use for the step
+      command: [/bin/echo]      # Command to be executed within the container
+      args: ["Hello World!"]    # Arguments passed to the echo command
