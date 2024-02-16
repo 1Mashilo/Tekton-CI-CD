@@ -1,10 +1,60 @@
-apiVersion: tekton.dev/v1beta1  # Specifies the Tekton API version being used
-kind: Task                      # Declares that this is a Tekton Task resource
-metadata:                       # Section for providing metadata about the Task
-  name: hello-world             # Gives the Task a descriptive name
-spec:                           # Section for defining the Task's steps 
-  steps:                        # Indicates the beginning of the steps list
-    - name: echo                # Assigns a name to this specific step
-      image: alpine:3           # Specifies the Docker image to use for the step
-      command: [/bin/echo]      # Command to be executed within the container
-      args: ["Hello World!"]    # Arguments passed to the echo command
+
+
+---  # Document separator marking the start of the 'checkout' Task
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run-python-tests
+spec:
+  steps:
+    - name: unit-test
+      image: python:3.9  # Image with Python installed
+      command: ["pytest"]
+      args: ["tests/"] # Assuming your tests are in a 'tests' directory
+
+--- # Document separator marking the start of the 'checkout' Task
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: checkout # Identifies this Task as the "checkout" Task
+spec:
+  params:
+    - name: repo-url 
+      description: The URL of the git repo to clone
+      type: string
+    - name: branch 
+      description: The branch to clone
+      type: string
+  steps:
+    - name: checkout # Descriptive name for the step
+      image: bitnami/git:latest # A container image specialized for Git commands
+      command: [git]   
+      args: ["clone", "--branch", "$(params.branch)", "$(params.repo-url)"]  # Git clone command with dynamic parameters
+
+---
+apiVersion: tekton.dev/v1beta1 
+kind: Task
+metadata:
+  name: deploy-to-kubernetes 
+  spec:
+  params:
+    - name: image  # Parameter for the container image to deploy
+    - name: manifest  # Parameter for the Kubernetes manifest file
+    - name: namespace  # Parameter for controlling the deployment target namespace
+  steps:
+    - name: apply-manifest
+      image: alpine:3 # Uses a lightweight Alpine Linux image
+      command: ["kubectl"] # Specifying the 'kubectl' command 
+      args: ["apply", "-n", "$(params.namespace)", "-f", "$(params.manifest)"] # Constructs the 'kubectl apply' command with dynamic arguments
+      env: 
+        - name: DEPLOYMENT_STATUS # Environment variable to store deployment result
+          valueFrom:
+            script: | # Retrieves value from a small inline script
+              kubectl apply -n $(params.namespace) -f $(params.manifest) && echo "SUCCESS" || echo "FAILURE" 
+                # kubectl command is executed; SUCCESS/FAILURE echoed based on exit code
+    - name: handle-failure 
+      image: alpine:3 
+      command: [/bin/sh, -c] # Uses the Alpine image's shell for conditional logic
+      args: ['if [ "$DEPLOYMENT_STATUS" == "FAILURE" ]; then echo "Deployment Failed! Investigate output above."; exit 1; fi'] 
+                # Conditional execution: Runs only if DEPLOYMENT_STATUS is "FAILURE"
+                # If failure, echoes an error message and exits the Task with a non-zero status
